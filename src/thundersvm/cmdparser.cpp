@@ -150,12 +150,10 @@ void CMDParser::parse_command_line(int argc, char **argv) {
                     HelpInfo_svmtrain();
             }
         }
-        if (n_cores == -1) {
-            omp_set_num_threads(omp_get_max_threads());
-        } else if (n_cores <= 0) {
-            LOG(ERROR) << "cores number must bigger than 0";
-        } else {
+        if (n_cores > 0) {
             omp_set_num_threads(n_cores);
+        } else if (n_cores != -1) {
+            LOG(ERROR) << "the number of cpu cores must be positive or -1";
         }
         if (i >= argc)
             HelpInfo_svmtrain();
@@ -186,6 +184,9 @@ void CMDParser::parse_command_line(int argc, char **argv) {
                 case 'u':
                     gpu_id = atoi(argv[i]);
                     break;
+                case 'o':
+                    n_cores = atoi(argv[i]);
+                    break;
                 case 'm':
                     param_cmd.max_mem_size = static_cast<size_t>(max(atoi(argv[i]), 0)) << 20;//MB to Byte
                     break;
@@ -193,6 +194,11 @@ void CMDParser::parse_command_line(int argc, char **argv) {
                     fprintf(stderr, "Unknown option: -%c\n", argv[i - 1][1]);
                     HelpInfo_svmpredict();
             }
+        }
+        if (n_cores > 0) {
+            omp_set_num_threads(n_cores);
+        } else if (n_cores != -1) {
+            LOG(ERROR) << "the number of cpu cores must be positive or -1";
         }
         if (i >= argc - 2)
             HelpInfo_svmpredict();
@@ -281,12 +287,10 @@ void CMDParser::parse_python(int argc, char **argv) {
                 HelpInfo_svmtrain();
         }
     }
-    if (n_cores == -1) {
-        omp_set_num_threads(omp_get_num_procs());
-    } else if (n_cores <= 0) {
-        LOG(ERROR) << "cores number must bigger than 0";
-    } else {
+    if (n_cores > 0) {
         omp_set_num_threads(n_cores);
+    } else if (n_cores != -1) {
+        LOG(ERROR) << "the number of cpu cores must be positive or -1";
     }
     if (i > argc)
         HelpInfo_svmtrain();

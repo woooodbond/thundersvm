@@ -25,24 +25,22 @@ elif platform == "win32":
 elif platform == "darwin":
     shared_library_name = "libthundersvm.dylib"
 else :
-    print ("OS not supported!")
-    exit()
+    raise EnvironmentError("OS not supported!")
 
 if path.exists(path.abspath(path.join(dirname, shared_library_name))):
     lib_path = path.abspath(path.join(dirname, shared_library_name))
 else:
     if platform == "linux" or platform == "linux2":
-        lib_path = path.join(dirname, '../build/lib/', shared_library_name)
+        lib_path = path.join(dirname, shared_library_name)
     elif platform == "win32":
-        lib_path = path.join(dirname, '../build/bin/Debug/', shared_library_name)
+        lib_path = path.join(dirname, shared_library_name)
     elif platform == "darwin":
-        lib_path = path.join(dirname, '../build/lib/', shared_library_name)
+        lib_path = path.join(dirname, shared_library_name)
 
 if path.exists(lib_path):
     thundersvm = CDLL(lib_path)
-else :
-    print ("Please build the library first!")
-    exit()
+else:
+    raise FileNotFoundError("Please build the library first!")
 
 SVM_TYPE = ['c_svc', 'nu_svc', 'one_class', 'epsilon_svr', 'nu_svr']
 KERNEL_TYPE = ['linear', 'polynomial', 'rbf', 'sigmoid', 'precomputed']
@@ -122,14 +120,6 @@ class SvmModel(ThundersvmBase):
         csr_data = (c_float * (self.n_sv * self.n_features))()
         data_size = (c_int * 1)()
         thundersvm.get_sv(csr_row, csr_col, csr_data, data_size, c_void_p(self.model))
-        self.row  = np.array([csr_row[index] for index in range(0, self.n_sv + 1)])
-        self.col  = np.array([csr_col[index] for index in range(0, data_size[0])])
-        self.data = np.array([csr_data[index] for index in range(0, data_size[0])])
-
-        self.support_vectors_ = sp.csr_matrix((self.data, self.col, self.row))
-        if self._sparse == False:
-            self.support_vectors_ = self.support_vectors_.toarray(order = 'C')
-
         dual_coef = (c_float * ((self.n_classes - 1) * self.n_sv))()
         thundersvm.get_coef(dual_coef, self.n_classes, self.n_sv, c_void_p(self.model))
         
@@ -140,7 +130,6 @@ class SvmModel(ThundersvmBase):
         self.n_binary_model = rho_size
         rho = (c_float * rho_size)()
         thundersvm.get_rho(rho, rho_size, c_void_p(self.model))
-        self.intercept_ = np.array([rho[index] for index in range(0, rho_size)]).astype(float)
 
         if self.kernel == 'linear':
             coef = (c_float * (self.n_binary_model * self.n_sv))()
@@ -148,9 +137,15 @@ class SvmModel(ThundersvmBase):
             self.coef_ = np.array([coef[index] for index in range(0, self.n_binary_model * self.n_features)]).astype(float)
             self.coef_ = np.reshape(self.coef_, (self.n_binary_model, self.n_features))
 
-
+        self.intercept_ = np.array([rho[index] for index in range(0, rho_size)]).astype(float)
         
-
+        self.row  = np.array([csr_row[index] for index in range(0, self.n_sv + 1)])
+        self.col  = np.array([csr_col[index] for index in range(0, data_size[0])])
+        self.data = np.array([csr_data[index] for index in range(0, data_size[0])])
+        
+        self.support_vectors_ = sp.csr_matrix((self.data, self.col, self.row))
+        if self._sparse == False:
+            self.support_vectors_ = self.support_vectors_.toarray(order = 'C')
         n_support_ = (c_int * self.n_classes)()
         thundersvm.get_support_classes(n_support_, self.n_classes, c_void_p(self.model))
         
@@ -407,48 +402,6 @@ class SvmModel(ThundersvmBase):
         kernel = (c_char * 20)()
         thundersvm.init_model_param(kernel, degree, gamma,
                                     coef0, probability,c_void_p(self.model))
-        n_classes = (c_int * 1)()
-        thundersvm.get_n_classes(c_void_p(self.model), n_classes)
-        self.n_classes = n_classes[0]
-        n_support_ = (c_int * self.n_classes)()
-        thundersvm.get_support_classes(n_support_, self.n_classes, c_void_p(self.model))
-        self.n_support_ = np.array([n_support_[index] for index in range(0, self.n_classes)]).astype(int)
-
-        self.n_sv = thundersvm.n_sv(c_void_p(self.model))
-
-        n_feature = (c_int * 1)()
-        thundersvm.get_sv_max_index(c_void_p(self.model), n_feature)
-        self.n_features = n_feature[0]
-
-        csr_row = (c_int * (self.n_sv + 1))()
-        csr_col = (c_int * (self.n_sv * self.n_features))()
-        csr_data = (c_float * (self.n_sv * self.n_features))()
-        data_size = (c_int * 1)()
-        thundersvm.get_sv(csr_row, csr_col, csr_data, data_size, c_void_p(self.model))
-        self.row  = np.array([csr_row[index] for index in range(0, self.n_sv + 1)])
-        self.col  = np.array([csr_col[index] for index in range(0, data_size[0])])
-        self.data = np.array([csr_data[index] for index in range(0, data_size[0])])
-        self.support_vectors_ = sp.csr_matrix((self.data, self.col, self.row))
-        # if self._sparse == False:
-        #     self.support_vectors_ = self.support_vectors_.toarray(order = 'C')
-
-        dual_coef = (c_float * ((self.n_classes - 1) * self.n_sv))()
-        thundersvm.get_coef(dual_coef, self.n_classes, self.n_sv, c_void_p(self.model))
-        self.dual_coef_ = np.array([dual_coef[index] for index in range(0, (self.n_classes - 1) * self.n_sv)]).astype(float)
-        self.dual_coef_ = np.reshape(self.dual_coef_, (self.n_classes - 1, self.n_sv))
-
-        rho_size = int(self.n_classes * (self.n_classes - 1) / 2)
-        self.n_binary_model = rho_size
-        rho = (c_float * rho_size)()
-        thundersvm.get_rho(rho, rho_size, c_void_p(self.model))
-        self.intercept_ = np.array([rho[index] for index in range(0, rho_size)]).astype(float)
-
-        # if self.kernel == 'linear':
-        #     coef = (c_float * (self.n_binary_model * self.n_sv))()
-        #     thundersvm.get_linear_coef(coef, self.n_binary_model, self.n_features, c_void_p(self.model))
-        #     self.coef_ = np.array([coef[index] for index in range(0, self.n_binary_model * self.n_features)]).astype(float)
-        #     self.coef_ = np.reshape(self.coef_, (self.n_binary_model, self.n_features))
-
         self.kernel = kernel.value
         self.degree = degree[0]
         if gamma[0] != 0.0:

@@ -58,7 +58,7 @@ namespace svm_kernel {
                     const float_type *coef1 = &coef[(j - 1) * total_sv];
                     const float_type *coef2 = &coef[i * total_sv];
                     const kernel_type *k_values = &k_mat[idx * total_sv];
-                    kernel_type sum = 0;
+                    double sum = 0;
                     for (int l = 0; l < ci; ++l) {
                         sum += coef1[si + l] * k_values[si + l];
                     }
@@ -144,10 +144,19 @@ namespace svm_kernel {
         }
         kernel_type one(1);
         kernel_type zero(0);
+#ifdef USE_DOUBLE
+        cusparseDcsrmm2(handle, CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_TRANSPOSE,
+                        m, n, k, nnz, &one, descr, csr_val.device_data(), csr_row_ptr.device_data(),
+                        csr_col_ind.device_data(),
+                        dense_mat.device_data(), n, &zero, result.device_data(), m);
+#else//kernel type is float
         cusparseScsrmm2(handle, CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_TRANSPOSE,
                         m, n, k, nnz, &one, descr, csr_val.device_data(), csr_row_ptr.device_data(),
                         csr_col_ind.device_data(),
                         dense_mat.device_data(), n, &zero, result.device_data(), m);
+#endif
+
+
         //cusparseScsrmm return row-major matrix, so no transpose is needed
     }
 }

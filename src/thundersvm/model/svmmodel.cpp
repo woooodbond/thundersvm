@@ -118,13 +118,16 @@ SvmModel::predict_dec_values(const DataSet::node2d &instances, SyncArray<float_t
 vector<float_type> SvmModel::predict(const DataSet::node2d &instances, int batch_size = -1) {
 //    param.max_mem_size
     dec_values.resize(instances.size() * n_binary_models);
-    vector<float_type> dec_values_vec(dec_values.size());
-    dec_values.set_host_data(dec_values_vec.data());
+//    vector<float_type> dec_values_vec(dec_values.size());
+//    dec_values.set_host_data(dec_values_vec.data());
 #ifdef USE_CUDA
     dec_values.to_device();//reserve space
 #endif
     predict_dec_values(instances, dec_values, batch_size);
     dec_values.to_host();//copy back from device
+    float_type* dec_values_host = dec_values.host_data();
+    vector<float_type> dec_values_vec(dec_values.size());
+    memcpy(dec_values_vec.data(), dec_values_host, dec_values.size() * sizeof(float_type));
     return dec_values_vec;
 }
 
@@ -273,8 +276,15 @@ void SvmModel::load_from_file(string path) {
                 string tuple;
                 while (ss >> tuple) {
                     sv.back().emplace_back(0, 0);
+//todo use streaming operator >> here to avoid ifdef
+#ifdef USE_DOUBLE
+                    CHECK_EQ(sscanf(tuple.c_str(), "%d:%lf", &sv.back().back().index, &sv.back().back().value), 2)
+#else
                     CHECK_EQ(sscanf(tuple.c_str(), "%d:%f", &sv.back().back().index, &sv.back().back().value), 2)
+#endif
                         << "error when loading model file";
+                    if(sv.back().back().index > sv_max_index)
+                        sv_max_index = sv.back().back().index;
                 };
             }
             ifs.close();
@@ -300,6 +310,10 @@ const SyncArray<int> &SvmModel::get_n_sv() const {
 
 const SyncArray<float_type> &SvmModel::get_coef() const {
     return coef;
+}
+
+const SyncArray<float_type> &SvmModel::get_linear_coef() const {
+    return linear_coef;
 }
 
 const SyncArray<float_type> &SvmModel::get_rho() const {
@@ -334,5 +348,50 @@ int SvmModel::get_working_set_size(int n_instances, int n_features) {
 }
 
 void SvmModel::set_max_memory_size(size_t size) {
-    this->param.max_mem_size = size;
+    if(size > 0)
+		this->param.max_mem_size = static_cast<size_t>(size) << 20;
+}
+
+void SvmModel::set_max_memory_size_Byte(size_t size) {
+	if(size > 0)
+		this->param.max_mem_size = static_cast<size_t>(size);
+}
+
+void SvmModel::get_param(char* kernel_type, int* degree, float* gamma, float* coef0, int* probability){
+    switch(param.kernel_type){
+        case 0:
+            strcpy(kernel_type, "linear");
+            break;
+        case 1:
+            strcpy(kernel_type, "polynomial");
+            break;
+        case 2:
+            strcpy(kernel_type, "rbf");
+            break;
+        case 3:
+            strcpy(kernel_type, "sigmoid");
+            break;
+        case 4:
+            strcpy(kernel_type, "precomputed");
+            break;
+    }
+    *degree = param.degree;
+    *gamma = param.gamma;
+    *coef0 = param.coef0;
+    *probability = param.probability;
+}
+
+void SvmModel::compute_linear_coef_single_model(size_t n_feature){
+    linear_coef.resize(n_feature);
+    float_type* linear_coef_data = linear_coef.host_data();
+    float_type* coef_data = coef.host_data();
+    for(int i = 0; i < n_total_sv; i++){
+        for(int j = 0; j < sv[i].size(); j++){
+            linear_coef_data[sv[i][j].index - 1] += coef_data[i] * sv[i][j].value;
+        }
+    }
+}
+
+int SvmModel::get_sv_max_index() const{
+    return sv_max_index;
 }

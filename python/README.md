@@ -54,9 +54,9 @@ The usage of thundersvm scikit interface is similar to sklearn.svm.
 
 
 ##### SVM classification
-*class SVC(kernel = 'rbf', degree = 3, gamma = 'auto', coef0 = 0.0, C = 1.0, tol = 0.001, probability = False, class_weight = None, shrinking = False, cache_size = None, verbose = False, max_iter = -1, n_jobs = -1, max_mem_size = -1, random_state = None, decison_function_shape = 'ovo')*
+*class SVC(kernel = 'rbf', degree = 3, gamma = 'auto', coef0 = 0.0, C = 1.0, tol = 0.001, probability = False, class_weight = None, shrinking = False, cache_size = None, verbose = False, max_iter = -1, n_jobs = -1, max_mem_size = -1, random_state = None, decision_function_shape = 'ovo')*
 
-*class NuSVC(kernel = 'rbf', degree = 3, gamma = 'auto', coef0 = 0.0, nu = 0.5, tol = 0.001, probability = False, shrinking = False, cache_size = None, verbose = False, max_iter = -1, n_jobs = -1, max_mem_size = -1, random_state = None, decison_function_shape = 'ovo')*
+*class NuSVC(kernel = 'rbf', degree = 3, gamma = 'auto', coef0 = 0.0, nu = 0.5, tol = 0.001, probability = False, shrinking = False, cache_size = None, verbose = False, max_iter = -1, n_jobs = -1, max_mem_size = -1, random_state = None, decision_function_shape = 'ovo')*
 
 ##### One-class SVMs
 
@@ -122,6 +122,9 @@ The usage of thundersvm scikit interface is similar to sklearn.svm.
 *max_mem_size*: int, optional (default=-1)\
 	set the maximum memory size (MB) that thundersvm uses, or -1 for no limit.
 
+*gpu_id*: int, optional (default=0)\
+	set which gpu to use for training.
+
 *decision_function_shape*: ‘ovo’, default=’ovo’, not supported yet for 'ovr'\
     only for classifier. Whether to return a one-vs-rest (‘ovr’) decision function of shape (n_samples, n_classes) as all other classifiers, or the original one-vs-one (‘ovo’) decision function of libsvm which has shape (n_samples, n_classes * (n_classes - 1) / 2).
 
@@ -138,6 +141,9 @@ The usage of thundersvm scikit interface is similar to sklearn.svm.
 *dual_coef_*: array, shape = [n_class-1, n_SV]\
     coefficients of the support vector in the decision function. For multiclass, coefficient for all 1-vs-1 classifiers. The layout of the coefficients in the multiclass case is somewhat non-trivial.
 
+*coef_*: array, shape = [n_class * (n_class-1)/2, n_features]\
+    Weights assigned to the features (coefficients in the primal problem). This is only available in the case of a linear kernel.
+    
 *intercept_*: array, shape = [n_class * (n_class-1) / 2]\
     constants in decision function.
 

@@ -81,6 +81,9 @@ public:
     //return coef
     const SyncArray<float_type> &get_coef() const;
 
+    //return linear_coef
+    const SyncArray<float_type> &get_linear_coef() const;
+
     //return rho
     const SyncArray<float_type> &get_rho() const;
 
@@ -90,14 +93,24 @@ public:
     //return dec_values
     const SyncArray<float_type> &get_dec_value() const;
 
-    //set max_memory_size during training and prediction
+    //set max_memory_size during training and prediction (input unit MB)
     void set_max_memory_size(size_t size);
 
+	//set max_memory_size during training and prediction (input unit Byte)
+	void set_max_memory_size_Byte(size_t size);
+	
     //return n_binary_models
     int get_n_binary_models() const;
 
     //return prob_predict
     const vector<float> &get_prob_predict() const;
+
+    void compute_linear_coef_single_model(size_t n_feature);
+    //get the params, for scikit load params
+    void get_param(char* kernel_type, int* degree, float* gamma, float* coef0, int* probability);
+
+    //return sv_max_index
+    int get_sv_max_index() const;
 protected:
 
     /**
@@ -122,6 +135,10 @@ protected:
      */
 
     SyncArray<float_type> coef;
+
+
+    ///weights assigned to the features. Only available in the case of a linear kernel
+    SyncArray<float_type> linear_coef;
     /**
      * support vectors of this model. The support vectors is grouped in classes 0,1,2,.... The sequence of them in each
      * group is as they appear in original dataset. A training instance is saved as a support vector IFF it is a
@@ -161,6 +178,9 @@ protected:
 
     ///the probability for each class in predict
     vector<float> prob_predict;
+
+    ///the maximum index of support vectors, used for scikit load svs
+    int sv_max_index = 0;
 };
 
 #endif //THUNDERSVM_SVMMODEL_H
